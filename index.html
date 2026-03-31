@@ -115,7 +115,7 @@
                 
                 const now = new Date();
                 lastUpdatedText.innerText = `마지막 동기화: ${now.toLocaleTimeString()}`;
-                updateStatus.innerText = '실시간 스트리밍 중 (10초 간격)';
+                updateStatus.innerText = '실시간 스트리밍 중 (2초 간격)';
             } catch (error) {
                 console.error('데이터 로드 실패:', error);
                 updateStatus.innerText = '연결 오류 - 시트 권한을 확인하세요';
@@ -198,7 +198,7 @@
         window.onload = () => {
             resizeCanvas();
             fetchData();
-            setInterval(fetchData, 10000);
+            setInterval(fetchData, 2000); // 2초 간격으로 수정
         };
     </script>
 </body>
