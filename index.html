@@ -93,6 +93,7 @@
         const lastUpdatedText = document.getElementById('last-updated');
 
         let currentList = [];
+        let lastDataHash = ""; // 데이터 변동 확인용 변수
 
         function resizeCanvas() {
             canvas.width = container.offsetWidth;
@@ -130,7 +131,7 @@
             const wordCounts = {};
 
             rows.forEach((row, index) => {
-                if (index === 0 && row[0] === "Timestamp") return; 
+                if (index === 0 && (row[0] === "Timestamp" || row[0].includes("타임스탬프"))) return; 
 
                 for (let i = 0; i < 5; i++) {
                     if (row[i]) {
@@ -142,13 +143,28 @@
                 }
             });
 
-            currentList = Object.entries(wordCounts).map(([word, count]) => [word, count]);
-            currentList.sort((a, b) => b[1] - a[1]);
+            const newList = Object.entries(wordCounts).map(([word, count]) => [word, count]);
+            newList.sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]));
+
+            // 데이터 변동 여부 확인 (문자열로 변환하여 비교)
+            const newDataHash = JSON.stringify(newList);
+            if (newDataHash === lastDataHash) {
+                // 변동이 없으면 렌더링을 생략하여 화면 유지
+                return;
+            }
+
+            lastDataHash = newDataHash;
+            currentList = newList;
             renderWordCloud(currentList);
         }
 
         function renderWordCloud(list) {
-            if (list.length === 0) return;
+            if (list.length === 0) {
+                // 데이터가 없을 경우 캔버스 클리어
+                const ctx = canvas.getContext('2d');
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                return;
+            }
 
             // 반응형 글꼴 크기 계산
             const weightBase = canvas.width < 600 ? canvas.width / 12 : canvas.width / 18;
@@ -157,7 +173,7 @@
                 list: list,
                 gridSize: Math.round(12 * canvas.width / 1024),
                 weightFactor: function (size) {
-                    return Math.pow(size, 0.6) * (weightBase / (list[0][1] || 1));
+                    return Math.pow(size, 0.6) * (weightBase / Math.pow(list[0][1] || 1, 0.6));
                 },
                 fontFamily: 'Pretendard, sans-serif',
                 color: function () {
@@ -198,7 +214,7 @@
         window.onload = () => {
             resizeCanvas();
             fetchData();
-            setInterval(fetchData, 2000); // 2초 간격으로 수정
+            setInterval(fetchData, 2000); 
         };
     </script>
 </body>
