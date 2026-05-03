@@ -62,7 +62,7 @@
                 <div class="flex justify-between items-center pb-3">
                     <p class="text-2xl font-bold text-gray-800">데이터 초기화</p>
                 </div>
-                <p class="text-gray-600 my-4">정말로 제출된 모든 답변을 삭제하시겠습니까?<br><span class="text-red-500 font-semibold text-sm">※ 구글 스프레드시트의 모든 행이 삭제됩니다.</span></p>
+                <p class="text-gray-600 my-4">정말로 제출된 모든 답변을 삭제하시겠습니까?<br><span class="text-red-500 font-semibold text-sm">※ 구글 스프레드시트의 모든 행(2행부터)이 즉시 삭제됩니다.</span></p>
                 <div class="flex justify-end pt-2 gap-3">
                     <button id="modal-cancel" class="px-6 py-2 bg-gray-100 text-gray-700 rounded-xl hover:bg-gray-200 transition-all font-medium">취소</button>
                     <button id="modal-confirm" class="px-6 py-2 bg-red-500 text-white rounded-xl hover:bg-red-600 transition-all font-medium">전체 삭제</button>
@@ -105,13 +105,13 @@
             </div>
             <!-- 데이터 없음 표시 -->
             <div id="empty-state" class="absolute inset-0 flex items-center justify-center bg-white/80 hidden">
-                <p class="text-gray-400 text-lg font-medium">참여를 기다리고 있어요! (데이터 없음)</p>
+                <p class="text-gray-400 text-lg font-medium text-center px-4">참여를 기다리고 있어요!<br><span class="text-sm font-normal">데이터가 입력되면 구름이 생성됩니다.</span></p>
             </div>
         </main>
 
         <!-- 하단 정보 -->
         <footer class="mt-4 flex flex-col md:flex-row justify-between items-center gap-2 text-[10px] md:text-xs text-gray-400 px-2 shrink-0">
-            <p>* 구글 스프레드시트(A~E열) 데이터를 실시간(2초)으로 시각화합니다.</p>
+            <p>* 구글 스프레드시트(A~E열) 데이터를 실시간(2초)으로 동기화합니다.</p>
             <p id="last-updated">마지막 동기화: -</p>
         </footer>
     </div>
@@ -122,8 +122,9 @@
          */
         const SPREADSHEET_ID = '196JtxNZSUe3EEc3VP-EN6c-B3IoUlEifxs3-mSH-Z7g';
         const SHEET_NAME = 'Sheet1';
-        // 여기에 Google Apps Script 배포 URL을 넣으세요.
-        const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbw5O6Z9Lbjm7w8aTA609pcJuRNsVTZDLMgmXqi30tWrVEEWHEKVnKS8lFAyiPkqgWQ/exec'; 
+        
+        // Google Apps Script 웹 앱 URL
+        const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbyBzTOWeCa2FXZfbZBMBYkZKrX8QntBQRfCXASLt_NevZU_HJh_FvPDipcbBHHlfg/exec'; 
 
         const canvas = document.getElementById('word-cloud-canvas');
         const container = document.getElementById('word-cloud-container');
@@ -137,9 +138,6 @@
         let lastDataHash = ""; 
         let fetchInterval = null;
 
-        /**
-         * 캔버스 크기 조정
-         */
         function resizeCanvas() {
             canvas.width = container.offsetWidth;
             canvas.height = container.offsetHeight;
@@ -151,9 +149,6 @@
             window.resizeFinished = setTimeout(resizeCanvas, 250);
         });
 
-        /**
-         * 데이터 가져오기
-         */
         async function fetchData() {
             const apiUrl = `https://docs.google.com/spreadsheets/d/${SPREADSHEET_ID}/gviz/tq?tqx=out:csv&sheet=${SHEET_NAME}`;
             
@@ -174,9 +169,6 @@
             }
         }
 
-        /**
-         * CSV 데이터 처리
-         */
         function processData(csvText) {
             const rows = csvText.split('\n').map(row => {
                 return row.split(',').map(cell => cell.replace(/^"(.*)"$/, '$1').trim());
@@ -184,10 +176,7 @@
 
             const wordCounts = {};
             rows.forEach((row, index) => {
-                // 헤더 스킵 (타임스탬프 등)
                 if (index === 0 && (row[0].toLowerCase().includes("time") || row[0].includes("타임"))) return; 
-                
-                // A열(0)부터 E열(4)까지 데이터 수집
                 for (let i = 0; i < 5; i++) {
                     if (row[i] && row[i].length > 0) {
                         const word = row[i];
@@ -199,7 +188,6 @@
             const newList = Object.entries(wordCounts).map(([word, count]) => [word, count]);
             newList.sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]));
 
-            // 데이터 변동 여부 확인 (동일하면 다시 그리지 않음)
             const newDataHash = JSON.stringify(newList);
             if (newDataHash === lastDataHash) return;
 
@@ -216,13 +204,8 @@
             }
         }
 
-        /**
-         * 워드클라우드 렌더링
-         */
         function renderWordCloud(list) {
-            // 반응형 가중치 계산
             const weightBase = canvas.width < 600 ? canvas.width / 12 : canvas.width / 18;
-            
             WordCloud(canvas, {
                 list: list,
                 gridSize: Math.round(12 * canvas.width / 1024),
@@ -230,59 +213,60 @@
                     return Math.pow(size, 0.6) * (weightBase / Math.pow(list[0][1] || 1, 0.6));
                 },
                 fontFamily: 'Pretendard, sans-serif',
-                color: () => {
-                    const colors = ['#4f46e5', '#7c3aed', '#db2777', '#2563eb', '#0891b2', '#059669'];
-                    return colors[Math.floor(Math.random() * colors.length)];
-                },
+                color: () => ['#4f46e5', '#7c3aed', '#db2777', '#2563eb', '#0891b2', '#059669'][Math.floor(Math.random() * 6)],
                 rotateRatio: 0.2,
-                rotationSteps: 2,
                 backgroundColor: '#ffffff',
-                minSize: 8,
-                drawOutOfBound: false,
                 shrinkToFit: true
             });
         }
 
         /**
-         * 데이터 초기화 요청
+         * 데이터 초기화 실행
          */
         async function performReset() {
-            updateStatus.innerText = '시트를 비우는 중...';
-            
-            if (SCRIPT_URL === 'YOUR_APPS_SCRIPT_WEB_APP_URL') {
-                alert("Apps Script 웹 앱 URL이 설정되지 않았습니다. 가이드 파일을 확인해 주세요.");
+            if (SCRIPT_URL.includes('YOUR_APPS_SCRIPT')) {
+                alert("삭제 기능을 사용하려면 Apps Script 웹 앱 URL 설정이 필요합니다.");
                 toggleModal();
                 return;
             }
 
+            updateStatus.innerText = '삭제 명령을 보내는 중...';
+            
             try {
-                // Apps Script에 요청 (JSONP나 CORS 대응을 위해 fetch 사용)
-                await fetch(SCRIPT_URL, { method: 'POST', mode: 'no-cors' });
+                // 더 안정적인 GET 방식 호출 + 캐시 방지용 타임스탬프
+                const finalUrl = SCRIPT_URL + (SCRIPT_URL.includes('?') ? '&' : '?') + 'action=reset&t=' + Date.now();
                 
-                // 즉시 로컬 데이터 초기화
+                await fetch(finalUrl, { 
+                    method: 'GET', 
+                    mode: 'no-cors',
+                    cache: 'no-store'
+                });
+                
+                // 화면 즉시 비우기 (사용자 피드백용)
                 currentList = [];
                 lastDataHash = "reset_" + Date.now();
                 const ctx = canvas.getContext('2d');
                 ctx.clearRect(0, 0, canvas.width, canvas.height);
                 emptyState.classList.remove('hidden');
-                updateStatus.innerText = '모든 데이터가 성공적으로 삭제되었습니다.';
+                
+                updateStatus.innerText = '삭제 완료! (시트 반영 대기 중)';
+                
+                // 3초 후 데이터 새로고침
+                setTimeout(fetchData, 3000);
+                
             } catch(e) {
-                console.error(e);
-                updateStatus.innerText = '초기화 요청 중 오류가 발생했습니다.';
+                console.error('Reset error:', e);
+                updateStatus.innerText = '삭제 요청 중 오류가 발생했습니다.';
             }
             toggleModal();
         }
 
-        /**
-         * 모달 토글
-         */
         function toggleModal() {
             modal.classList.toggle('opacity-0');
             modal.classList.toggle('pointer-events-none');
             document.body.classList.toggle('modal-active');
         }
 
-        // 이벤트 리스너
         document.getElementById('reset-btn').addEventListener('click', toggleModal);
         document.getElementById('modal-cancel').addEventListener('click', toggleModal);
         document.getElementById('modal-confirm').addEventListener('click', performReset);
@@ -292,11 +276,7 @@
             const originalHTML = btn.innerHTML;
             btn.innerText = "저장 중...";
             btn.disabled = true;
-            
-            html2canvas(document.getElementById('capture-area'), { 
-                backgroundColor: '#ffffff',
-                scale: 2 
-            }).then(capCanvas => {
+            html2canvas(document.getElementById('capture-area'), { scale: 2 }).then(capCanvas => {
                 const link = document.createElement('a');
                 link.download = `함께만든생각구름_${new Date().getTime()}.png`;
                 link.href = capCanvas.toDataURL();
@@ -306,11 +286,10 @@
             });
         });
 
-        // 시작
         window.onload = () => { 
             resizeCanvas(); 
             fetchData();
-            fetchInterval = setInterval(fetchData, 2000); // 2초 간격
+            fetchInterval = setInterval(fetchData, 2000); 
         };
     </script>
 </body>
