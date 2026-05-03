@@ -62,7 +62,7 @@
                 <div class="flex justify-between items-center pb-3">
                     <p class="text-2xl font-bold text-gray-800">데이터 초기화</p>
                 </div>
-                <p class="text-gray-600 my-4">정말로 제출된 모든 답변을 삭제하시겠습니까?<br><span class="text-red-500 font-semibold text-sm">※ 구글 스프레드시트의 모든 행(2행부터)이 즉시 삭제됩니다.</span></p>
+                <p class="text-gray-600 my-4">정말로 제출된 모든 답변을 삭제하시겠습니까?<br><span class="text-red-500 font-semibold text-sm">※ 구글 스프레드시트의 모든 데이터(첫 행 포함)가 즉시 삭제됩니다.</span></p>
                 <div class="flex justify-end pt-2 gap-3">
                     <button id="modal-cancel" class="px-6 py-2 bg-gray-100 text-gray-700 rounded-xl hover:bg-gray-200 transition-all font-medium">취소</button>
                     <button id="modal-confirm" class="px-6 py-2 bg-red-500 text-white rounded-xl hover:bg-red-600 transition-all font-medium">전체 삭제</button>
@@ -124,7 +124,7 @@
         const SHEET_NAME = 'Sheet1';
         
         // Google Apps Script 웹 앱 URL
-        const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbyBzTOWeCa2FXZfbZBMBYkZKrX8QntBQRfCXASLt_NevZU_HJh_FvPDipcbBHHlfg/exec'; 
+        const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzqSHB9z37h4LcvifWzYpWcZs3FTnmuaYqKmD_QdL2KVopSLXJUJ5PUGRkR3v9mFyY/exec'; 
 
         const canvas = document.getElementById('word-cloud-canvas');
         const container = document.getElementById('word-cloud-container');
@@ -176,6 +176,7 @@
 
             const wordCounts = {};
             rows.forEach((row, index) => {
+                // 헤더 스킵 조건 (필요에 따라 주석 처리 가능)
                 if (index === 0 && (row[0].toLowerCase().includes("time") || row[0].includes("타임"))) return; 
                 for (let i = 0; i < 5; i++) {
                     if (row[i] && row[i].length > 0) {
@@ -233,7 +234,7 @@
             updateStatus.innerText = '삭제 명령을 보내는 중...';
             
             try {
-                // 더 안정적인 GET 방식 호출 + 캐시 방지용 타임스탬프
+                // GET 방식으로 명령 전달 (캐시 방지 포함)
                 const finalUrl = SCRIPT_URL + (SCRIPT_URL.includes('?') ? '&' : '?') + 'action=reset&t=' + Date.now();
                 
                 await fetch(finalUrl, { 
@@ -242,16 +243,15 @@
                     cache: 'no-store'
                 });
                 
-                // 화면 즉시 비우기 (사용자 피드백용)
+                // 화면 즉시 비우기
                 currentList = [];
                 lastDataHash = "reset_" + Date.now();
                 const ctx = canvas.getContext('2d');
                 ctx.clearRect(0, 0, canvas.width, canvas.height);
                 emptyState.classList.remove('hidden');
                 
-                updateStatus.innerText = '삭제 완료! (시트 반영 대기 중)';
+                updateStatus.innerText = '삭제 명령 전송 완료! (시트가 완전히 비워집니다)';
                 
-                // 3초 후 데이터 새로고침
                 setTimeout(fetchData, 3000);
                 
             } catch(e) {
