@@ -13,7 +13,7 @@
             font-family: 'Pretendard', sans-serif;
             margin: 0;
             padding: 0;
-            overflow: hidden; /* 스크롤 방지 */
+            overflow: hidden; 
             background-color: #f8fafc;
         }
         #word-cloud-container {
@@ -31,76 +31,119 @@
         .status-dot {
             height: 8px;
             width: 8px;
-            background-color: #10b981;
             border-radius: 50%;
             display: inline-block;
             margin-right: 6px;
-            animation: pulse 2s infinite;
         }
+        .status-online { background-color: #10b981; animation: pulse 2s infinite; }
+        .status-offline { background-color: #ef4444; }
+        
         @keyframes pulse {
             0% { opacity: 1; }
             50% { opacity: 0.3; }
             100% { opacity: 1; }
         }
+
+        .modal {
+            transition: opacity 0.25s ease;
+        }
+        body.modal-active {
+            overflow: hidden;
+        }
     </style>
 </head>
 <body class="h-screen flex flex-col">
 
-    <!-- Main Wrapper for Layout Control -->
+    <!-- 초기화 확인 모달 (Modal) -->
+    <div id="reset-modal" class="modal opacity-0 pointer-events-none fixed w-full h-full top-0 left-0 flex items-center justify-center z-50">
+        <div class="modal-overlay absolute w-full h-full bg-gray-900 opacity-50"></div>
+        <div class="modal-container bg-white w-11/12 md:max-w-md mx-auto rounded-2xl shadow-2xl z-50 overflow-y-auto">
+            <div class="modal-content py-6 text-left px-8">
+                <div class="flex justify-between items-center pb-3">
+                    <p class="text-2xl font-bold text-gray-800">데이터 초기화</p>
+                </div>
+                <p class="text-gray-600 my-4">정말로 제출된 모든 답변을 삭제하시겠습니까?<br><span class="text-red-500 font-semibold text-sm">※ 구글 스프레드시트의 모든 행이 삭제됩니다.</span></p>
+                <div class="flex justify-end pt-2 gap-3">
+                    <button id="modal-cancel" class="px-6 py-2 bg-gray-100 text-gray-700 rounded-xl hover:bg-gray-200 transition-all font-medium">취소</button>
+                    <button id="modal-confirm" class="px-6 py-2 bg-red-500 text-white rounded-xl hover:bg-red-600 transition-all font-medium">전체 삭제</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 메인 레이아웃 -->
     <div class="flex flex-col h-full w-full p-4 md:p-6 lg:p-8 box-border">
         
-        <!-- Header Section -->
-        <header class="flex flex-col md:flex-row justify-between items-start md:items-center mb-4 gap-4 shrink-0">
+        <!-- 헤더 영역 -->
+        <header class="flex flex-col md:flex-row justify-between items-start md:items-end mb-4 gap-4 shrink-0">
             <div>
                 <p class="text-xs md:text-sm font-semibold text-gray-500 mb-1">개발자: 가치있는 미래교육 연구소 대표 김병찬</p>
                 <h1 class="text-2xl md:text-4xl font-extrabold gradient-text">함께 만드는 생각 구름</h1>
                 <div class="flex items-center mt-1 text-xs md:text-sm text-gray-400">
-                    <span class="status-dot"></span>
-                    <span id="update-status">데이터를 실시간으로 모으는 중...</span>
+                    <span id="status-dot" class="status-dot status-offline"></span>
+                    <span id="update-status">데이터 연결 중...</span>
                 </div>
             </div>
             
-            <button id="capture-btn" class="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2.5 rounded-xl font-bold transition-all transform hover:scale-105 active:scale-95 shadow-lg text-sm md:text-base">
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                </svg>
-                우리의 생각 저장하기
-            </button>
+            <div class="flex items-center gap-2 w-full md:w-auto">
+                <button id="reset-btn" class="bg-red-50 hover:bg-red-100 text-red-600 px-5 py-2.5 rounded-xl text-sm font-bold transition-all border border-red-100 active:scale-95">
+                    전체 초기화
+                </button>
+                <button id="capture-btn" class="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-2.5 rounded-xl font-bold transition-all transform hover:scale-105 active:scale-95 shadow-lg text-sm">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                    </svg>
+                    이미지로 저장
+                </button>
+            </div>
         </header>
 
-        <!-- Main Display Area (Full Height) -->
+        <!-- 워드클라우드 표시 영역 -->
         <main id="capture-area" class="flex-1 min-h-0 bg-white rounded-[1.5rem] md:rounded-[2rem] border border-gray-100 shadow-sm overflow-hidden relative">
             <div id="word-cloud-container">
                 <canvas id="word-cloud-canvas"></canvas>
             </div>
+            <!-- 데이터 없음 표시 -->
+            <div id="empty-state" class="absolute inset-0 flex items-center justify-center bg-white/80 hidden">
+                <p class="text-gray-400 text-lg font-medium">참여를 기다리고 있어요! (데이터 없음)</p>
+            </div>
         </main>
 
-        <!-- Info Footer -->
-        <footer class="mt-4 flex justify-between items-center text-[10px] md:text-xs text-gray-400 px-2 shrink-0">
-            <p>* 구글 시트(A~E열)의 단어들이 실시간으로 구름이 됩니다.</p>
+        <!-- 하단 정보 -->
+        <footer class="mt-4 flex flex-col md:flex-row justify-between items-center gap-2 text-[10px] md:text-xs text-gray-400 px-2 shrink-0">
+            <p>* 구글 스프레드시트(A~E열) 데이터를 실시간(2초)으로 시각화합니다.</p>
             <p id="last-updated">마지막 동기화: -</p>
         </footer>
     </div>
 
     <script>
+        /**
+         * 설정 값
+         */
         const SPREADSHEET_ID = '196JtxNZSUe3EEc3VP-EN6c-B3IoUlEifxs3-mSH-Z7g';
-        const SHEET_NAME = 'Sheet1'; 
-        const API_URL = `https://docs.google.com/spreadsheets/d/${SPREADSHEET_ID}/gviz/tq?tqx=out:csv&sheet=${SHEET_NAME}`;
+        const SHEET_NAME = 'Sheet1';
+        // 여기에 Google Apps Script 배포 URL을 넣으세요.
+        const SCRIPT_URL = 'YOUR_APPS_SCRIPT_WEB_APP_URL'; 
 
         const canvas = document.getElementById('word-cloud-canvas');
         const container = document.getElementById('word-cloud-container');
         const updateStatus = document.getElementById('update-status');
         const lastUpdatedText = document.getElementById('last-updated');
+        const statusDot = document.getElementById('status-dot');
+        const emptyState = document.getElementById('empty-state');
+        const modal = document.getElementById('reset-modal');
 
         let currentList = [];
-        let lastDataHash = ""; // 데이터 변동 확인용 변수
+        let lastDataHash = ""; 
+        let fetchInterval = null;
 
+        /**
+         * 캔버스 크기 조정
+         */
         function resizeCanvas() {
             canvas.width = container.offsetWidth;
             canvas.height = container.offsetHeight;
-            if (currentList.length > 0) {
-                renderWordCloud(currentList);
-            }
+            if (currentList.length > 0) renderWordCloud(currentList);
         }
 
         window.addEventListener('resize', () => {
@@ -108,37 +151,47 @@
             window.resizeFinished = setTimeout(resizeCanvas, 250);
         });
 
+        /**
+         * 데이터 가져오기
+         */
         async function fetchData() {
+            const apiUrl = `https://docs.google.com/spreadsheets/d/${SPREADSHEET_ID}/gviz/tq?tqx=out:csv&sheet=${SHEET_NAME}`;
+            
             try {
-                const response = await fetch(API_URL);
+                const response = await fetch(apiUrl);
+                if (!response.ok) throw new Error('Fetch failed');
                 const csvText = await response.text();
                 processData(csvText);
                 
                 const now = new Date();
                 lastUpdatedText.innerText = `마지막 동기화: ${now.toLocaleTimeString()}`;
                 updateStatus.innerText = '실시간 스트리밍 중 (2초 간격)';
+                statusDot.className = 'status-dot status-online';
             } catch (error) {
-                console.error('데이터 로드 실패:', error);
-                updateStatus.innerText = '연결 오류 - 시트 권한을 확인하세요';
+                console.error('Fetch error:', error);
+                updateStatus.innerText = '연결 오류 - 시트 공유 권한을 확인하세요.';
+                statusDot.className = 'status-dot status-offline';
             }
         }
 
+        /**
+         * CSV 데이터 처리
+         */
         function processData(csvText) {
             const rows = csvText.split('\n').map(row => {
                 return row.split(',').map(cell => cell.replace(/^"(.*)"$/, '$1').trim());
             });
 
             const wordCounts = {};
-
             rows.forEach((row, index) => {
-                if (index === 0 && (row[0] === "Timestamp" || row[0].includes("타임스탬프"))) return; 
-
+                // 헤더 스킵 (타임스탬프 등)
+                if (index === 0 && (row[0].toLowerCase().includes("time") || row[0].includes("타임"))) return; 
+                
+                // A열(0)부터 E열(4)까지 데이터 수집
                 for (let i = 0; i < 5; i++) {
-                    if (row[i]) {
+                    if (row[i] && row[i].length > 0) {
                         const word = row[i];
-                        if (word.length > 0) {
-                            wordCounts[word] = (wordCounts[word] || 0) + 1;
-                        }
+                        wordCounts[word] = (wordCounts[word] || 0) + 1;
                     }
                 }
             });
@@ -146,29 +199,30 @@
             const newList = Object.entries(wordCounts).map(([word, count]) => [word, count]);
             newList.sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]));
 
-            // 데이터 변동 여부 확인 (문자열로 변환하여 비교)
+            // 데이터 변동 여부 확인 (동일하면 다시 그리지 않음)
             const newDataHash = JSON.stringify(newList);
-            if (newDataHash === lastDataHash) {
-                // 변동이 없으면 렌더링을 생략하여 화면 유지
-                return;
-            }
+            if (newDataHash === lastDataHash) return;
 
             lastDataHash = newDataHash;
             currentList = newList;
-            renderWordCloud(currentList);
-        }
-
-        function renderWordCloud(list) {
-            if (list.length === 0) {
-                // 데이터가 없을 경우 캔버스 클리어
+            
+            if (currentList.length === 0) {
+                emptyState.classList.remove('hidden');
                 const ctx = canvas.getContext('2d');
                 ctx.clearRect(0, 0, canvas.width, canvas.height);
-                return;
+            } else {
+                emptyState.classList.add('hidden');
+                renderWordCloud(currentList);
             }
+        }
 
-            // 반응형 글꼴 크기 계산
+        /**
+         * 워드클라우드 렌더링
+         */
+        function renderWordCloud(list) {
+            // 반응형 가중치 계산
             const weightBase = canvas.width < 600 ? canvas.width / 12 : canvas.width / 18;
-
+            
             WordCloud(canvas, {
                 list: list,
                 gridSize: Math.round(12 * canvas.width / 1024),
@@ -176,7 +230,7 @@
                     return Math.pow(size, 0.6) * (weightBase / Math.pow(list[0][1] || 1, 0.6));
                 },
                 fontFamily: 'Pretendard, sans-serif',
-                color: function () {
+                color: () => {
                     const colors = ['#4f46e5', '#7c3aed', '#db2777', '#2563eb', '#0891b2', '#059669'];
                     return colors[Math.floor(Math.random() * colors.length)];
                 },
@@ -189,32 +243,74 @@
             });
         }
 
+        /**
+         * 데이터 초기화 요청
+         */
+        async function performReset() {
+            updateStatus.innerText = '시트를 비우는 중...';
+            
+            if (SCRIPT_URL === 'YOUR_APPS_SCRIPT_WEB_APP_URL') {
+                alert("Apps Script 웹 앱 URL이 설정되지 않았습니다. 가이드 파일을 확인해 주세요.");
+                toggleModal();
+                return;
+            }
+
+            try {
+                // Apps Script에 요청 (JSONP나 CORS 대응을 위해 fetch 사용)
+                await fetch(SCRIPT_URL, { method: 'POST', mode: 'no-cors' });
+                
+                // 즉시 로컬 데이터 초기화
+                currentList = [];
+                lastDataHash = "reset_" + Date.now();
+                const ctx = canvas.getContext('2d');
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                emptyState.classList.remove('hidden');
+                updateStatus.innerText = '모든 데이터가 성공적으로 삭제되었습니다.';
+            } catch(e) {
+                console.error(e);
+                updateStatus.innerText = '초기화 요청 중 오류가 발생했습니다.';
+            }
+            toggleModal();
+        }
+
+        /**
+         * 모달 토글
+         */
+        function toggleModal() {
+            modal.classList.toggle('opacity-0');
+            modal.classList.toggle('pointer-events-none');
+            document.body.classList.toggle('modal-active');
+        }
+
+        // 이벤트 리스너
+        document.getElementById('reset-btn').addEventListener('click', toggleModal);
+        document.getElementById('modal-cancel').addEventListener('click', toggleModal);
+        document.getElementById('modal-confirm').addEventListener('click', performReset);
+        
         document.getElementById('capture-btn').addEventListener('click', () => {
             const btn = document.getElementById('capture-btn');
-            const originalText = btn.innerHTML;
-            
+            const originalHTML = btn.innerHTML;
             btn.innerText = "저장 중...";
             btn.disabled = true;
-
-            html2canvas(document.getElementById('capture-area'), {
+            
+            html2canvas(document.getElementById('capture-area'), { 
                 backgroundColor: '#ffffff',
                 scale: 2 
-            }).then(canvas => {
+            }).then(capCanvas => {
                 const link = document.createElement('a');
                 link.download = `함께만든생각구름_${new Date().getTime()}.png`;
-                link.href = canvas.toDataURL('image/png');
+                link.href = capCanvas.toDataURL();
                 link.click();
-                
-                btn.innerHTML = originalText;
+                btn.innerHTML = originalHTML;
                 btn.disabled = false;
             });
         });
 
-        // 초기화
-        window.onload = () => {
-            resizeCanvas();
+        // 시작
+        window.onload = () => { 
+            resizeCanvas(); 
             fetchData();
-            setInterval(fetchData, 2000); 
+            fetchInterval = setInterval(fetchData, 2000); // 2초 간격
         };
     </script>
 </body>
