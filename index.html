@@ -105,7 +105,7 @@
         // ==========================================
         // 🚨 중요: 여기에 GAS 웹앱 배포 URL을 붙여넣으세요!
         // ==========================================
-        const GAS_URL = "https://script.google.com/macros/s/AKfycbwvbKJ7HHWnzLMWE48SB-hSpsz7QT6l7FybrvoMcfCvAkqnq4II5rB5bB_DCKRfDSE/exec"; 
+        const GAS_URL = "https://script.google.com/macros/s/AKfycbyY34d4YJvOjkkVTZGSYtQPNub1vN_Wnxt50icyqBT-4HGyWJSpXNqAUxk5QfbNbg/exec"; 
 
         let globalConfig = null;
         let lastWordCount = -1; // 이전 데이터 수 기억하여 변경시에만 렌더링
@@ -208,7 +208,15 @@
         async function fetchAndRenderWords() {
             isFetching = true;
             try {
-                const wordsArray = await callGasApi('getWordsData');
+                // 서버에서 단어 데이터와 설정(질문 등) 데이터를 동시에 불러옴
+                const syncData = await callGasApi('getSyncData');
+                const wordsArray = syncData.words;
+                
+                // 설정 데이터가 변경되었으면 UI에 즉각 반영 (제목, 질문 등)
+                if (syncData.config) {
+                    globalConfig = syncData.config;
+                    updateUIConfig(globalConfig);
+                }
                 
                 document.getElementById('data-count').innerText = wordsArray.length;
                 
