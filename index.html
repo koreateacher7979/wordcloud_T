@@ -2,295 +2,402 @@
 <html lang="ko">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>함께 만드는 생각 구름 - 실시간 워드클라우드</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>강사용 워드클라우드</title>
+    <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/wordcloud2.js/1.2.2/wordcloud2.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700;900&display=swap" rel="stylesheet">
+    <!-- D3.js & D3 Cloud for Word Cloud -->
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/d3-cloud/1.2.7/d3.layout.cloud.min.js"></script>
+    <!-- html2canvas for Image Export -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Pretendard:wght@400;600;800&display=swap" rel="stylesheet">
     <style>
-        body {
-            font-family: 'Pretendard', sans-serif;
-            margin: 0;
-            padding: 0;
-            overflow: hidden; 
+        body, html {
+            margin: 0; padding: 0; width: 100%; height: 100%;
+            font-family: 'Noto Sans KR', sans-serif;
             background-color: #f8fafc;
+            overflow: hidden; /* 스크롤 완전 방지 */
         }
-        #word-cloud-container {
-            width: 100%;
-            height: 100%;
-            position: relative;
-            background: white;
-            overflow: hidden;
+        #wordcloud-container {
+            width: 100%; height: 100%;
+            display: flex; justify-content: center; align-items: center;
         }
-        .gradient-text {
-            background: linear-gradient(135deg, #6366f1 0%, #a855f7 100%);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-        }
-        .status-dot {
-            height: 8px;
-            width: 8px;
-            border-radius: 50%;
-            display: inline-block;
-            margin-right: 6px;
-        }
-        .status-online { background-color: #10b981; animation: pulse 2s infinite; }
-        .status-offline { background-color: #ef4444; }
-        
-        @keyframes pulse {
-            0% { opacity: 1; }
-            50% { opacity: 0.3; }
-            100% { opacity: 1; }
-        }
-
-        .modal {
-            transition: opacity 0.25s ease;
-        }
-        body.modal-active {
-            overflow: hidden;
-        }
+        svg text { cursor: pointer; transition: opacity 0.3s, transform 0.2s; }
+        svg text:hover { opacity: 0.8; transform: scale(1.05); }
     </style>
 </head>
-<body class="h-screen flex flex-col">
+<body class="flex flex-col h-screen text-gray-800">
 
-    <!-- 초기화 확인 모달 (Modal) -->
-    <div id="reset-modal" class="modal opacity-0 pointer-events-none fixed w-full h-full top-0 left-0 flex items-center justify-center z-50">
-        <div class="modal-overlay absolute w-full h-full bg-gray-900 opacity-50"></div>
-        <div class="modal-container bg-white w-11/12 md:max-w-md mx-auto rounded-2xl shadow-2xl z-50 overflow-y-auto">
-            <div class="modal-content py-6 text-left px-8">
-                <div class="flex justify-between items-center pb-3">
-                    <p class="text-2xl font-bold text-gray-800">데이터 초기화</p>
-                </div>
-                <p class="text-gray-600 my-4">정말로 제출된 모든 답변을 삭제하시겠습니까?<br><span class="text-red-500 font-semibold text-sm">※ 구글 스프레드시트의 모든 데이터(첫 행 포함)가 즉시 삭제됩니다.</span></p>
-                <div class="flex justify-end pt-2 gap-3">
-                    <button id="modal-cancel" class="px-6 py-2 bg-gray-100 text-gray-700 rounded-xl hover:bg-gray-200 transition-all font-medium">취소</button>
-                    <button id="modal-confirm" class="px-6 py-2 bg-red-500 text-white rounded-xl hover:bg-red-600 transition-all font-medium">전체 삭제</button>
-                </div>
+    <header class="bg-indigo-700 text-white shadow-md z-20 flex-shrink-0">
+        <div class="px-6 py-3 flex justify-between items-center">
+            <h1 class="text-lg font-bold" id="header-title">강사용 시스템 로딩중...</h1>
+            <div class="text-xs text-indigo-200 whitespace-nowrap ml-4">
+                개발자 : 가치있는 미래교육 연구소 대표 김병찬
+            </div>
+        </div>
+    </header>
+
+    <main class="flex-1 relative bg-[#f8fafc] flex flex-col" id="capture-area">
+        
+        <!-- 상단 정보 패널 -->
+        <div class="px-6 py-4 bg-white/80 backdrop-blur-md shadow-sm z-10 flex justify-between items-center border-b absolute top-0 left-0 right-0">
+            <div>
+                <div id="inst-title" class="text-xl font-black text-gray-800"></div>
+                <div id="inst-question" class="text-sm font-bold text-indigo-600 mt-1"></div>
+            </div>
+            <div class="text-sm text-gray-600 font-bold bg-indigo-50 px-4 py-2 rounded-full border border-indigo-100 shadow-sm">
+                수집된 단어: <span id="data-count" class="text-indigo-600 font-black text-lg">0</span> 건
+            </div>
+        </div>
+
+        <!-- 워드클라우드 컨테이너 -->
+        <div class="flex-1 w-full h-full pt-20 pb-16 relative">
+            <div id="wordcloud-container"></div>
+            <!-- 초기 상태 표시 -->
+            <div id="empty-state" class="absolute inset-0 flex flex-col items-center justify-center text-gray-400 pointer-events-none">
+                <svg class="w-16 h-16 mb-4 text-gray-300 animate-pulse" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"></path></svg>
+                <p class="font-medium text-lg">참여자들의 의견을 기다리고 있습니다...</p>
+            </div>
+        </div>
+    </main>
+
+    <footer class="bg-gray-900 text-white p-3 flex justify-between items-center z-20 flex-shrink-0 shadow-[0_-5px_15px_rgba(0,0,0,0.1)]">
+        <div class="flex items-center space-x-2 text-sm text-gray-400">
+            <span class="relative flex h-3 w-3">
+              <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
+              <span class="relative inline-flex rounded-full h-3 w-3 bg-green-500"></span>
+            </span>
+            <span>2초 주기 실시간 동기화 중</span>
+        </div>
+        <div class="flex space-x-3">
+            <button onclick="promptEditQuestion()" class="px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded-lg text-sm font-medium transition flex items-center shadow-md">
+                질문 수정
+            </button>
+            <button onclick="downloadImage()" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 rounded-lg text-sm font-medium transition flex items-center shadow-md">
+                이미지 저장
+            </button>
+            <button onclick="promptResetData()" class="px-4 py-2 bg-rose-600 hover:bg-rose-500 rounded-lg text-sm font-medium transition flex items-center shadow-md">
+                데이터 초기화
+            </button>
+        </div>
+    </footer>
+
+    <!-- 커스텀 디자인 모달 (alert/prompt 대체) -->
+    <div id="custom-modal" class="fixed inset-0 bg-black/60 z-[100] hidden flex-col items-center justify-center p-4 backdrop-blur-sm">
+        <div class="bg-white rounded-2xl shadow-2xl p-6 w-full max-w-sm transform transition-all text-center sm:text-left">
+            <h3 id="modal-title" class="text-xl font-bold mb-2 text-gray-800"></h3>
+            <p id="modal-msg" class="text-gray-600 mb-4 text-sm break-keep"></p>
+            
+            <div id="modal-inputs" class="space-y-3 mb-6 hidden">
+                <input type="password" id="modal-input-pw" class="w-full px-4 py-3 rounded-xl border border-gray-300 focus:ring-2 focus:ring-indigo-500 focus:outline-none hidden" placeholder="관리자 비밀번호 (A2셀)">
+                <input type="text" id="modal-input-text" class="w-full px-4 py-3 rounded-xl border border-gray-300 focus:ring-2 focus:ring-indigo-500 focus:outline-none hidden" placeholder="새로운 질문">
+            </div>
+
+            <div id="modal-buttons" class="flex space-x-2 justify-end">
+                <button id="btn-cancel" class="px-5 py-2.5 bg-gray-100 text-gray-700 rounded-xl font-medium hover:bg-gray-200 hidden">취소</button>
+                <button id="btn-confirm" class="w-full sm:w-auto px-5 py-2.5 bg-indigo-600 text-white rounded-xl font-bold hover:bg-indigo-700">확인</button>
             </div>
         </div>
     </div>
 
-    <!-- 메인 레이아웃 -->
-    <div class="flex flex-col h-full w-full p-4 md:p-6 lg:p-8 box-border">
-        
-        <!-- 헤더 영역 -->
-        <header class="flex flex-col md:flex-row justify-between items-start md:items-end mb-4 gap-4 shrink-0">
-            <div>
-                <p class="text-xs md:text-sm font-semibold text-gray-500 mb-1">개발자: 가치있는 미래교육 연구소 대표 김병찬</p>
-                <h1 class="text-2xl md:text-4xl font-extrabold gradient-text">함께 만드는 생각 구름</h1>
-                <div class="flex items-center mt-1 text-xs md:text-sm text-gray-400">
-                    <span id="status-dot" class="status-dot status-offline"></span>
-                    <span id="update-status">데이터 연결 중...</span>
-                </div>
-            </div>
-            
-            <div class="flex items-center gap-2 w-full md:w-auto">
-                <button id="reset-btn" class="bg-red-50 hover:bg-red-100 text-red-600 px-5 py-2.5 rounded-xl text-sm font-bold transition-all border border-red-100 active:scale-95">
-                    전체 초기화
-                </button>
-                <button id="capture-btn" class="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-2.5 rounded-xl font-bold transition-all transform hover:scale-105 active:scale-95 shadow-lg text-sm">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                    </svg>
-                    이미지로 저장
-                </button>
-            </div>
-        </header>
-
-        <!-- 워드클라우드 표시 영역 -->
-        <main id="capture-area" class="flex-1 min-h-0 bg-white rounded-[1.5rem] md:rounded-[2rem] border border-gray-100 shadow-sm overflow-hidden relative">
-            <div id="word-cloud-container">
-                <canvas id="word-cloud-canvas"></canvas>
-            </div>
-            <!-- 데이터 없음 표시 -->
-            <div id="empty-state" class="absolute inset-0 flex items-center justify-center bg-white/80 hidden">
-                <p class="text-gray-400 text-lg font-medium text-center px-4">참여를 기다리고 있어요!<br><span class="text-sm font-normal">데이터가 입력되면 구름이 생성됩니다.</span></p>
-            </div>
-        </main>
-
-        <!-- 하단 정보 -->
-        <footer class="mt-4 flex flex-col md:flex-row justify-between items-center gap-2 text-[10px] md:text-xs text-gray-400 px-2 shrink-0">
-            <p>* 구글 스프레드시트(A~E열) 데이터를 실시간(2초)으로 동기화합니다.</p>
-            <p id="last-updated">마지막 동기화: -</p>
-        </footer>
-    </div>
-
     <script>
-        /**
-         * 설정 값
-         */
-        const SPREADSHEET_ID = '196JtxNZSUe3EEc3VP-EN6c-B3IoUlEifxs3-mSH-Z7g';
-        const SHEET_NAME = 'Sheet1';
-        
-        // Google Apps Script 웹 앱 URL
-        const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzqSHB9z37h4LcvifWzYpWcZs3FTnmuaYqKmD_QdL2KVopSLXJUJ5PUGRkR3v9mFyY/exec'; 
+        // ==========================================
+        // 🚨 중요: 여기에 GAS 웹앱 배포 URL을 붙여넣으세요!
+        // ==========================================
+        const GAS_URL = "https://script.google.com/macros/s/AKfycbwvbKJ7HHWnzLMWE48SB-hSpsz7QT6l7FybrvoMcfCvAkqnq4II5rB5bB_DCKRfDSE/exec"; 
 
-        const canvas = document.getElementById('word-cloud-canvas');
-        const container = document.getElementById('word-cloud-container');
-        const updateStatus = document.getElementById('update-status');
-        const lastUpdatedText = document.getElementById('last-updated');
-        const statusDot = document.getElementById('status-dot');
-        const emptyState = document.getElementById('empty-state');
-        const modal = document.getElementById('reset-modal');
+        let globalConfig = null;
+        let lastWordCount = -1; // 이전 데이터 수 기억하여 변경시에만 렌더링
+        let syncInterval;
 
-        let currentList = [];
-        let lastDataHash = ""; 
-        let fetchInterval = null;
+        // 알록달록 색상 팔레트
+        const colorPalette = ["#ff595e", "#ffca3a", "#8ac926", "#1982c4", "#6a4c93", "#f15bb5", "#00bbf9", "#00f5d4", "#fb5607", "#ff006e"];
 
-        function resizeCanvas() {
-            canvas.width = container.offsetWidth;
-            canvas.height = container.offsetHeight;
-            if (currentList.length > 0) renderWordCloud(currentList);
+        // 커스텀 모달 제어 함수
+        function showModal({ title, msg, type = 'alert', onConfirm }) {
+            const modal = document.getElementById('custom-modal');
+            document.getElementById('modal-title').innerText = title;
+            document.getElementById('modal-msg').innerHTML = msg;
+            
+            const mInputs = document.getElementById('modal-inputs');
+            const mInputPw = document.getElementById('modal-input-pw');
+            const mInputText = document.getElementById('modal-input-text');
+            const btnCancel = document.getElementById('btn-cancel');
+            const btnConfirm = document.getElementById('btn-confirm');
+            
+            mInputs.classList.add('hidden');
+            mInputPw.classList.add('hidden');
+            mInputText.classList.add('hidden');
+            btnCancel.classList.add('hidden');
+            
+            mInputPw.value = '';
+            
+            if (type === 'prompt-pw') {
+                mInputs.classList.remove('hidden');
+                mInputPw.classList.remove('hidden');
+                btnCancel.classList.remove('hidden');
+                setTimeout(() => mInputPw.focus(), 100);
+            } else if (type === 'prompt-question') {
+                mInputs.classList.remove('hidden');
+                mInputPw.classList.remove('hidden');
+                mInputText.classList.remove('hidden');
+                btnCancel.classList.remove('hidden');
+                setTimeout(() => mInputPw.focus(), 100);
+            } else if (type === 'confirm') {
+                btnCancel.classList.remove('hidden');
+            }
+
+            modal.style.display = 'flex';
+
+            btnCancel.onclick = () => { modal.style.display = 'none'; };
+            btnConfirm.onclick = () => {
+                modal.style.display = 'none';
+                if(onConfirm) {
+                    if(type === 'prompt-pw') onConfirm(mInputPw.value);
+                    else if(type === 'prompt-question') onConfirm(mInputPw.value, mInputText.value);
+                    else onConfirm();
+                }
+            };
         }
 
-        window.addEventListener('resize', () => {
-            clearTimeout(window.resizeFinished);
-            window.resizeFinished = setTimeout(resizeCanvas, 250);
-        });
+        // API 호출 공통 래퍼 함수
+        async function callGasApi(action, payload = {}) {
+            const response = await fetch(GAS_URL, {
+                method: 'POST',
+                headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+                body: JSON.stringify({ action: action, payload: payload })
+            });
+            const result = await response.json();
+            if (!result.success) throw new Error(result.message);
+            return result.data;
+        }
 
-        async function fetchData() {
-            const apiUrl = `https://docs.google.com/spreadsheets/d/${SPREADSHEET_ID}/gviz/tq?tqx=out:csv&sheet=${SHEET_NAME}`;
-            
+        // 초기 설정 로드
+        async function init() {
             try {
-                const response = await fetch(apiUrl);
-                if (!response.ok) throw new Error('Fetch failed');
-                const csvText = await response.text();
-                processData(csvText);
+                globalConfig = await callGasApi('getConfig');
+                updateUIConfig(globalConfig);
                 
-                const now = new Date();
-                lastUpdatedText.innerText = `마지막 동기화: ${now.toLocaleTimeString()}`;
-                updateStatus.innerText = '실시간 스트리밍 중 (2초 간격)';
-                statusDot.className = 'status-dot status-online';
+                // 최초 1회 즉시 데이터 로드
+                await fetchAndRenderWords();
+                
+                // 1초마다 스마트 실시간 동기화 (재귀 방식으로 멈춤 방지)
+                startSync();
+                
             } catch (error) {
-                console.error('Fetch error:', error);
-                updateStatus.innerText = '연결 오류 - 시트 공유 권한을 확인하세요.';
-                statusDot.className = 'status-dot status-offline';
+                showModal({ title: "연결 오류", msg: "서버 연결 실패: " + error.message });
             }
         }
 
-        function processData(csvText) {
-            const rows = csvText.split('\n').map(row => {
-                return row.split(',').map(cell => cell.replace(/^"(.*)"$/, '$1').trim());
+        function updateUIConfig(config) {
+            document.getElementById('header-title').innerText = config.title;
+            document.getElementById('inst-title').innerText = config.title;
+            document.getElementById('inst-question').innerText = config.question;
+        }
+
+        let isFetching = false;
+        function startSync() {
+            setTimeout(async () => {
+                if (!isFetching) await fetchAndRenderWords();
+                startSync();
+            }, 1000); // 1초 대기 후 초고속 요청
+        }
+
+        // 데이터 가져오기 및 렌더링 제어
+        async function fetchAndRenderWords() {
+            isFetching = true;
+            try {
+                const wordsArray = await callGasApi('getWordsData');
+                
+                document.getElementById('data-count').innerText = wordsArray.length;
+                
+                if (wordsArray.length === 0) {
+                    document.getElementById('empty-state').style.display = 'flex';
+                    document.getElementById('wordcloud-container').innerHTML = '';
+                    lastWordCount = 0;
+                    return;
+                }
+                
+                document.getElementById('empty-state').style.display = 'none';
+
+                // 데이터 개수가 이전과 다르거나, 화면 크기가 변경되었을 때만 재렌더링
+                if (wordsArray.length !== lastWordCount) {
+                    lastWordCount = wordsArray.length;
+                    renderWordCloud(wordsArray);
+                }
+            } catch (error) {
+                console.error("데이터 동기화 에러:", error);
+            } finally {
+                isFetching = false;
+            }
+        }
+
+        // d3 기반 워드클라우드 렌더링 로직
+        function renderWordCloud(wordsArray) {
+            // 단어 빈도수 계산
+            const counts = {};
+            wordsArray.forEach(w => { counts[w] = (counts[w] || 0) + 1; });
+            const keys = Object.keys(counts);
+
+            const maxCount = Math.max(...Object.values(counts));
+            const minCount = Math.min(...Object.values(counts));
+            
+            const container = document.getElementById('wordcloud-container');
+            const width = container.clientWidth;
+            const height = container.clientHeight;
+            
+            // 화면 비율에 따른 기본 폰트 사이즈
+            const baseFontSize = width < 800 ? 18 : 28;
+            const sizeMultiplier = width < 800 ? 15 : 30;
+
+            const mappedWords = keys.map(word => {
+                let scale = 1;
+                if(maxCount > minCount) {
+                    scale = 1 + ((counts[word] - minCount) / (maxCount - minCount));
+                }
+                return {
+                    text: word,
+                    size: baseFontSize + (scale * sizeMultiplier), 
+                    count: counts[word]
+                };
             });
 
-            const wordCounts = {};
-            rows.forEach((row, index) => {
-                // 헤더 스킵 조건 (필요에 따라 주석 처리 가능)
-                if (index === 0 && (row[0].toLowerCase().includes("time") || row[0].includes("타임"))) return; 
-                for (let i = 0; i < 5; i++) {
-                    if (row[i] && row[i].length > 0) {
-                        const word = row[i];
-                        wordCounts[word] = (wordCounts[word] || 0) + 1;
+            container.innerHTML = ''; // 초기화
+
+            const layout = d3.layout.cloud()
+                .size([width, height])
+                .words(mappedWords)
+                .padding(8)
+                .rotate(() => (~~(Math.random() * 6) - 3) * 15) // -45도 ~ 45도 사이 약간의 기울기
+                .font("'Noto Sans KR', sans-serif")
+                .fontWeight(d => d.count > (maxCount/2) ? "900" : "700")
+                .fontSize(d => d.size)
+                .on("end", draw);
+
+            layout.start();
+
+            function draw(words) {
+                const svg = d3.select("#wordcloud-container").append("svg")
+                    .attr("width", layout.size()[0])
+                    .attr("height", layout.size()[1])
+                    .append("g")
+                    .attr("transform", "translate(" + layout.size()[0] / 2 + "," + layout.size()[1] / 2 + ")");
+
+                svg.selectAll("text")
+                    .data(words)
+                    .enter().append("text")
+                    .style("font-size", d => d.size + "px")
+                    .style("font-family", "'Noto Sans KR', sans-serif")
+                    .style("font-weight", d => d.count > (maxCount/2) ? "900" : "700")
+                    .style("fill", () => colorPalette[Math.floor(Math.random() * colorPalette.length)])
+                    .attr("text-anchor", "middle")
+                    .attr("transform", d => "translate(" + [d.x, d.y] + ")rotate(" + d.rotate + ")")
+                    .text(d => d.text)
+                    .append("title")
+                    .text(d => `${d.text} (${d.count}명)`);
+            }
+        }
+
+        // 창 크기 변경 시 재렌더링
+        window.addEventListener('resize', () => {
+            if(lastWordCount > 0) {
+                lastWordCount = -1; // 강제 리렌더링 유발
+                fetchAndRenderWords();
+            }
+        });
+
+        // 관리자 동작: 질문 변경
+        async function promptEditQuestion() {
+            if (!globalConfig) {
+                showModal({ title: "알림", msg: "서버 설정을 불러오는 중입니다. 잠시 후 다시 시도해주세요." });
+                return;
+            }
+            
+            document.getElementById('modal-input-text').value = globalConfig.question;
+
+            showModal({
+                title: "질문 수정",
+                msg: "관리자 비밀번호와 새로운 질문을 입력하세요.",
+                type: 'prompt-question',
+                onConfirm: async (pw, newQ) => {
+                    if (!pw || !newQ) return;
+                    
+                    // Optimistic UI: 화면에 질문을 먼저 0초 만에 변경해버림
+                    document.getElementById('inst-question').innerText = newQ;
+
+                    try {
+                        await callGasApi('updateQuestion', { pw: pw.trim(), newQuestion: newQ });
+                        showModal({ title: "성공", msg: "질문이 성공적으로 변경되었습니다." });
+                        globalConfig = await callGasApi('getConfig');
+                        updateUIConfig(globalConfig);
+                    } catch (error) {
+                        document.getElementById('inst-question').innerText = globalConfig.question; // 실패시 원상복구
+                        showModal({ title: "오류", msg: "비밀번호가 일치하지 않습니다." });
                     }
                 }
             });
-
-            const newList = Object.entries(wordCounts).map(([word, count]) => [word, count]);
-            newList.sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]));
-
-            const newDataHash = JSON.stringify(newList);
-            if (newDataHash === lastDataHash) return;
-
-            lastDataHash = newDataHash;
-            currentList = newList;
-            
-            if (currentList.length === 0) {
-                emptyState.classList.remove('hidden');
-                const ctx = canvas.getContext('2d');
-                ctx.clearRect(0, 0, canvas.width, canvas.height);
-            } else {
-                emptyState.classList.add('hidden');
-                renderWordCloud(currentList);
-            }
         }
 
-        function renderWordCloud(list) {
-            const weightBase = canvas.width < 600 ? canvas.width / 12 : canvas.width / 18;
-            WordCloud(canvas, {
-                list: list,
-                gridSize: Math.round(12 * canvas.width / 1024),
-                weightFactor: function (size) {
-                    return Math.pow(size, 0.6) * (weightBase / Math.pow(list[0][1] || 1, 0.6));
-                },
-                fontFamily: 'Pretendard, sans-serif',
-                color: () => ['#4f46e5', '#7c3aed', '#db2777', '#2563eb', '#0891b2', '#059669'][Math.floor(Math.random() * 6)],
-                rotateRatio: 0.2,
-                backgroundColor: '#ffffff',
-                shrinkToFit: true
-            });
-        }
-
-        /**
-         * 데이터 초기화 실행
-         */
-        async function performReset() {
-            if (SCRIPT_URL.includes('YOUR_APPS_SCRIPT')) {
-                alert("삭제 기능을 사용하려면 Apps Script 웹 앱 URL 설정이 필요합니다.");
-                toggleModal();
+        // 관리자 동작: 데이터 초기화
+        async function promptResetData() {
+            if (!globalConfig) {
+                showModal({ title: "알림", msg: "서버 설정을 불러오는 중입니다. 잠시 후 다시 시도해주세요." });
                 return;
             }
 
-            updateStatus.innerText = '삭제 명령을 보내는 중...';
+            showModal({
+                title: "데이터 초기화",
+                msg: "정말 모든 데이터를 삭제하시겠습니까?<br>구글 시트에서도 완전히 삭제됩니다.<br><br><b>관리자 비밀번호</b>를 입력하세요.",
+                type: 'prompt-pw',
+                onConfirm: async (pw) => {
+                    if (!pw) return;
+
+                    try {
+                        await callGasApi('resetData', { pw: pw.trim() });
+                        
+                        // 통신 성공 즉시 화면 리셋 (서버 대기 최소화)
+                        showModal({ title: "초기화 성공", msg: "데이터가 완전히 초기화되었습니다." });
+                        lastWordCount = 0;
+                        document.getElementById('wordcloud-container').innerHTML = ''; 
+                        document.getElementById('data-count').innerText = "0";
+                        document.getElementById('empty-state').style.display = 'flex';
+                        
+                    } catch (error) {
+                        showModal({ title: "오류", msg: "비밀번호가 일치하지 않습니다." });
+                    }
+                }
+            });
+        }
+
+        // 이미지 저장
+        async function downloadImage() {
+            const captureArea = document.getElementById('capture-area');
+            const originalTitle = document.title;
             
             try {
-                // GET 방식으로 명령 전달 (캐시 방지 포함)
-                const finalUrl = SCRIPT_URL + (SCRIPT_URL.includes('?') ? '&' : '?') + 'action=reset&t=' + Date.now();
-                
-                await fetch(finalUrl, { 
-                    method: 'GET', 
-                    mode: 'no-cors',
-                    cache: 'no-store'
+                // UI 캡쳐 정리
+                const emptyState = document.getElementById('empty-state');
+                const wasEmptyVisible = emptyState.style.display !== 'none';
+                emptyState.style.display = 'none';
+
+                const canvas = await html2canvas(captureArea, {
+                    backgroundColor: "#f8fafc",
+                    scale: 2
                 });
-                
-                // 화면 즉시 비우기
-                currentList = [];
-                lastDataHash = "reset_" + Date.now();
-                const ctx = canvas.getContext('2d');
-                ctx.clearRect(0, 0, canvas.width, canvas.height);
-                emptyState.classList.remove('hidden');
-                
-                updateStatus.innerText = '삭제 명령 전송 완료! (시트가 완전히 비워집니다)';
-                
-                setTimeout(fetchData, 3000);
-                
-            } catch(e) {
-                console.error('Reset error:', e);
-                updateStatus.innerText = '삭제 요청 중 오류가 발생했습니다.';
-            }
-            toggleModal();
-        }
 
-        function toggleModal() {
-            modal.classList.toggle('opacity-0');
-            modal.classList.toggle('pointer-events-none');
-            document.body.classList.toggle('modal-active');
-        }
+                if(wasEmptyVisible) emptyState.style.display = 'flex';
 
-        document.getElementById('reset-btn').addEventListener('click', toggleModal);
-        document.getElementById('modal-cancel').addEventListener('click', toggleModal);
-        document.getElementById('modal-confirm').addEventListener('click', performReset);
-        
-        document.getElementById('capture-btn').addEventListener('click', () => {
-            const btn = document.getElementById('capture-btn');
-            const originalHTML = btn.innerHTML;
-            btn.innerText = "저장 중...";
-            btn.disabled = true;
-            html2canvas(document.getElementById('capture-area'), { scale: 2 }).then(capCanvas => {
                 const link = document.createElement('a');
-                link.download = `함께만든생각구름_${new Date().getTime()}.png`;
-                link.href = capCanvas.toDataURL();
+                link.download = `워드클라우드_${globalConfig ? globalConfig.title : '저장'}.png`;
+                link.href = canvas.toDataURL('image/png');
                 link.click();
-                btn.innerHTML = originalHTML;
-                btn.disabled = false;
-            });
-        });
+            } catch (error) {
+                showModal({ title: "오류", msg: "이미지 캡쳐에 실패했습니다." });
+            }
+        }
 
-        window.onload = () => { 
-            resizeCanvas(); 
-            fetchData();
-            fetchInterval = setInterval(fetchData, 2000); 
-        };
+        window.onload = init;
     </script>
 </body>
 </html>
