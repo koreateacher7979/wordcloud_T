@@ -1,94 +1,118 @@
 <!DOCTYPE html>
-<html lang="ko">
+<html lang="ko" class="dark">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>실시간 워드클라우드 (강사용)</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>강사용 워드클라우드</title>
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- SweetAlert2 -->
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        darkBg: '#111827',
+                        darkPanel: '#1F2937'
+                    }
+                }
+            }
+        }
+    </script>
+    <!-- Libraries -->
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-    <!-- WordCloud2.js Library -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/wordcloud2.js/1.2.2/wordcloud2.min.js"></script>
-    <!-- Phosphor Icons -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <script src="https://unpkg.com/@phosphor-icons/web"></script>
     <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;700;900&display=swap" rel="stylesheet">
     
     <style>
-        body { font-family: 'Noto Sans KR', sans-serif; background-color: #111827; overflow: hidden; margin: 0; padding: 0; }
-        .glass-panel { background: rgba(255, 255, 255, 0.05); backdrop-filter: blur(10px); border: 1px solid rgba(255,255,255,0.1); }
-        canvas { display: block; width: 100%; height: 100%; }
-        /* Tooltip style */
-        #wc-tooltip { position: absolute; background: rgba(0,0,0,0.8); color: white; padding: 4px 8px; border-radius: 4px; font-size: 14px; pointer-events: none; opacity: 0; transition: opacity 0.2s; z-index: 50; }
+        body { font-family: 'Noto Sans KR', sans-serif; }
+        ::-webkit-scrollbar { display: none; } /* 스크롤바 숨기기 */
     </style>
 </head>
-<body class="h-screen w-screen flex flex-col text-white">
+<body class="w-full h-screen overflow-hidden bg-gray-50 dark:bg-darkBg text-gray-900 dark:text-gray-100 flex flex-col transition-colors duration-300">
 
 <!-- Header -->
-<header class="w-full bg-gray-900 border-b border-gray-800 py-2 px-6 flex justify-between items-center z-10 shrink-0">
-    <div class="text-gray-400 text-sm font-semibold tracking-wider flex items-center gap-2">
-        <i class="ph-fill ph-code text-blue-500 text-lg"></i>
-        개발자 : 가치있는 미래교육 연구소 대표 김병찬
+<header class="w-full bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 py-2 px-6 flex justify-between items-center z-10 shrink-0 shadow-sm dark:shadow-none transition-colors duration-300">
+    <div class="flex items-center gap-2">
+        <i class="ph-fill ph-chalkboard-teacher text-blue-600 dark:text-blue-400 text-xl"></i>
+        <p class="text-sm font-semibold tracking-wide">개발자 : 가치있는 미래교육 연구소 대표 김병찬</p>
     </div>
-    
-    <div class="flex gap-3">
-        <button onclick="saveImage()" class="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-500 px-4 py-2 rounded-lg text-sm font-bold transition-colors shadow-lg">
-            <i class="ph-bold ph-camera text-lg"></i> 이미지 저장
+    <div class="flex gap-2">
+        <button onclick="toggleTheme()" class="bg-gray-100 hover:bg-gray-200 dark:bg-gray-800 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-200 px-3 py-1.5 rounded-lg text-sm font-semibold flex items-center gap-1 transition">
+            <i id="theme-icon" class="ph-fill ph-moon"></i> <span class="hidden sm:inline" id="theme-text">테마</span>
         </button>
-        <button onclick="openAdminModal()" class="flex items-center gap-2 bg-gray-700 hover:bg-gray-600 px-4 py-2 rounded-lg text-sm font-bold transition-colors shadow-lg">
-            <i class="ph-bold ph-gear text-lg"></i> 설정
+        <button onclick="saveImage()" class="bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-1.5 rounded-lg text-sm font-semibold flex items-center gap-1 shadow-sm transition">
+            <i class="ph ph-camera"></i> <span class="hidden sm:inline">이미지 저장</span>
+        </button>
+        <button onclick="openAdminModal()" class="bg-gray-600 hover:bg-gray-700 text-white px-3 py-1.5 rounded-lg text-sm font-semibold flex items-center gap-1 shadow-sm transition">
+            <i class="ph ph-gear"></i> <span class="hidden sm:inline">설정</span>
         </button>
     </div>
 </header>
 
-<!-- Main Workspace -->
-<main class="flex-1 flex flex-col w-full relative h-full overflow-hidden">
+<!-- Main Workspace (전체 캡처 영역) -->
+<main id="main-workspace" class="flex-1 flex flex-col w-full relative h-full overflow-hidden bg-gray-50 dark:bg-darkBg transition-colors duration-300 p-4">
     <!-- Top Info Bar -->
-    <div class="glass-panel w-full p-4 md:p-6 z-10 shadow-md shrink-0 text-center flex flex-col items-center justify-center">
-        <div class="flex items-center gap-3 mb-2">
-            <span id="target-badge" class="bg-blue-500/20 text-blue-300 border border-blue-500/30 text-xs px-3 py-1 rounded-full font-bold">대상</span>
-            <h1 id="title-text" class="text-xl md:text-2xl font-bold text-gray-100">연수 제목</h1>
+    <div class="w-full p-2 md:p-4 z-10 shrink-0 text-center flex flex-col items-center justify-center">
+        <div class="mb-2">
+            <span id="target-badge" class="inline-block bg-blue-100 dark:bg-blue-900/60 text-blue-800 dark:text-blue-300 text-xs md:text-sm px-3 py-1 rounded-full font-bold shadow-sm border border-blue-200 dark:border-blue-800">대상 불러오는 중...</span>
         </div>
-        <h2 id="question-text" class="text-2xl md:text-4xl font-extrabold text-white mt-2 drop-shadow-md break-keep">질문이 여기에 표시됩니다.</h2>
-        <div class="mt-3 text-sm text-gray-400 font-medium">
-            총 참여 단어 수: <span id="word-count" class="text-blue-400 font-bold text-lg">0</span>개
-        </div>
+        <h1 id="title-text" class="text-xl md:text-2xl font-extrabold mb-3 drop-shadow-sm text-gray-800 dark:text-gray-100">연수 제목 불러오는 중...</h1>
+        <p id="question-text" class="text-lg md:text-xl font-bold text-gray-700 dark:text-gray-300 px-4 py-1">질문 불러오는 중...</p>
+        <p class="text-xs text-gray-500 dark:text-gray-400 mt-2 font-medium">총 참여 단어 수: <span id="word-count" class="font-bold text-blue-600 dark:text-blue-400">0</span>개</p>
     </div>
 
-    <!-- Word Cloud Canvas Container -->
-    <div id="canvas-container" class="flex-1 w-full h-full relative p-4">
-        <canvas id="wordcloud-canvas"></canvas>
-        <div id="wc-tooltip"></div>
+    <!-- WordCloud Canvas Container -->
+    <div class="flex-1 w-full relative flex items-center justify-center">
+        <!-- Canvas wrapper -->
+        <div id="canvas-container" class="w-full h-full flex items-center justify-center max-w-6xl mx-auto">
+            <canvas id="wordcloud-canvas" class="w-full h-full"></canvas>
+        </div>
     </div>
 </main>
 
-<!-- Admin Modal (Hidden by default) -->
-<div id="admin-modal" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center hidden opacity-0 transition-opacity duration-300">
-    <div class="bg-gray-800 border border-gray-700 rounded-2xl p-8 max-w-lg w-full mx-4 shadow-2xl transform scale-95 transition-transform duration-300" id="admin-modal-content">
-        <div class="flex justify-between items-center mb-6">
-            <h2 class="text-2xl font-bold text-white flex items-center gap-2"><i class="ph-bold ph-shield-check text-blue-500"></i> 관리자 모드</h2>
-            <button onclick="closeAdminModal()" class="text-gray-400 hover:text-white"><i class="ph-bold ph-x text-2xl"></i></button>
+<!-- Admin Modal Overlay -->
+<div id="admin-modal" class="fixed inset-0 bg-black/60 backdrop-blur-sm hidden z-50 flex items-center justify-center transition-opacity">
+    <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl w-full max-w-lg mx-4 overflow-hidden transform scale-100 transition-transform">
+        <div class="p-5 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center">
+            <h2 class="text-lg font-bold text-gray-800 dark:text-white flex items-center gap-2">
+                <i class="ph-fill ph-shield-check text-blue-500"></i> 관리자 모드
+            </h2>
+            <button onclick="closeAdminModal()" class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300">
+                <i class="ph ph-x text-xl"></i>
+            </button>
         </div>
-        
-        <div class="space-y-6">
+        <div class="p-5 space-y-4">
             <div>
-                <label class="block text-sm font-semibold text-gray-300 mb-2">인증번호 (시트 A2셀)</label>
-                <input type="password" id="admin-password" class="w-full bg-gray-900 border border-gray-600 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-blue-500" placeholder="인증번호 입력">
+                <label class="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1">인증번호 (시트 A2셀)</label>
+                <input type="password" id="admin-pw" class="w-full bg-gray-50 dark:bg-gray-900 border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none dark:text-white" placeholder="인증번호 입력">
             </div>
             
-            <div class="border-t border-gray-700 pt-6">
-                <label class="block text-sm font-semibold text-gray-300 mb-2">질문 수정 (시트 E2셀 연동)</label>
-                <textarea id="admin-question" rows="3" class="w-full bg-gray-900 border border-gray-600 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-blue-500 resize-none" placeholder="새로운 질문을 입력하세요"></textarea>
-                <button onclick="updateQuestion()" class="mt-3 w-full bg-blue-600 hover:bg-blue-500 text-white font-bold py-3 rounded-lg transition-colors">
-                    질문 수정 적용
+            <div class="border-t border-gray-200 dark:border-gray-700 pt-3 space-y-3">
+                <div>
+                    <label class="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1">대상 (시트 C2셀)</label>
+                    <input type="text" id="admin-target" class="w-full bg-gray-50 dark:bg-gray-900 border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none dark:text-white">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1">연수 제목 (시트 B2셀)</label>
+                    <input type="text" id="admin-title" class="w-full bg-gray-50 dark:bg-gray-900 border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none dark:text-white">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1">질문 내용 (시트 E2셀)</label>
+                    <textarea id="admin-question" rows="2" class="w-full bg-gray-50 dark:bg-gray-900 border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none dark:text-white"></textarea>
+                </div>
+                <button onclick="saveSettings()" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2.5 rounded-lg transition shadow-md text-sm">
+                    설정 저장하기
                 </button>
             </div>
 
-            <div class="border-t border-gray-700 pt-6">
-                <label class="block text-sm font-semibold text-red-400 mb-2">데이터 초기화 (주의)</label>
-                <p class="text-xs text-gray-400 mb-3">수집된 모든 단어 데이터를 일괄 삭제하며, 시트 데이터도 함께 삭제됩니다.</p>
-                <button onclick="resetData()" class="w-full bg-red-600 hover:bg-red-500 text-white font-bold py-3 rounded-lg transition-colors flex justify-center items-center gap-2">
-                    <i class="ph-bold ph-trash"></i> 모든 데이터 초기화
+            <div class="border-t border-gray-200 dark:border-gray-700 pt-3">
+                <p class="text-xs text-red-500 font-bold mb-1">데이터 초기화 (주의)</p>
+                <p class="text-[11px] text-gray-500 dark:text-gray-400 mb-2">수집된 모든 단어 데이터를 일괄 삭제하며, 시트 데이터도 함께 삭제됩니다.</p>
+                <button onclick="resetData()" class="w-full bg-red-600 hover:bg-red-700 text-white font-bold py-2.5 rounded-lg flex items-center justify-center gap-1 transition shadow-md text-sm">
+                    <i class="ph ph-trash"></i> 모든 데이터 초기화
                 </button>
             </div>
         </div>
@@ -99,45 +123,70 @@
     // ==============================================================================
     // [중요] 아래 GAS_URL 변수에 복사한 Apps Script '웹 앱 URL'을 반드시 붙여넣으세요!
     // ==============================================================================
-    const GAS_URL = "https://script.google.com/macros/s/AKfycbwreKJE-xvoJHEqSfJ-9fmdcf_S1ia5KnlS_8k_8qUrLPmLqQbHvB0YwdgFOH2q2X4/exec"; 
+    const GAS_URL = "https://script.google.com/macros/s/AKfycbx0G23gNrwNmS8knwhixqmbmRAt6ovdw63w1NAVbWd7JPZ_XS3HYWJcBygZiYecfKQ/exec"; 
     
-    let lastDataHash = "";
-    let currentWordsArray = [];
+    let currentWords = {};
     let isDrawing = false;
     let syncInterval;
 
-    // 예쁘고 알록달록한 색상 팔레트
-    const colorPalette = [
-        '#60A5FA', '#34D399', '#FBBF24', '#F87171', '#A78BFA', 
-        '#F472B6', '#38BDF8', '#4ADE80', '#FB923C', '#E879F9',
-        '#2DD4BF', '#FACC15', '#FB7185', '#818CF8', '#C084FC'
-    ];
-
-    document.addEventListener("DOMContentLoaded", () => {
-        if(GAS_URL === "YOUR_GOOGLE_APPS_SCRIPT_WEB_APP_URL_HERE") {
-            Swal.fire({ icon: 'warning', title: '설정 오류', text: 'HTML 코드 내에 Apps Script 웹 앱 URL을 입력해주세요.' });
-            return;
-        }
+    // 테마 토글
+    function toggleTheme() {
+        const html = document.documentElement;
+        const icon = document.getElementById('theme-icon');
+        const text = document.getElementById('theme-text');
         
-        // 캔버스 사이즈 초기 설정
-        resizeCanvas();
-        window.addEventListener('resize', () => {
-            resizeCanvas();
-            if(currentWordsArray.length > 0 && !isDrawing) renderCloud(currentWordsArray);
-        });
+        if (html.classList.contains('dark')) {
+            html.classList.remove('dark');
+            icon.className = 'ph-fill ph-sun text-orange-500';
+            text.innerText = '라이트모드';
+        } else {
+            html.classList.add('dark');
+            icon.className = 'ph-fill ph-moon text-yellow-400';
+            text.innerText = '다크모드';
+        }
+        if(Object.keys(currentWords).length > 0) renderWordCloud(currentWords);
+    }
 
-        // 최초 1회 실행 및 2초 간격 실시간 동기화
-        fetchData();
-        syncInterval = setInterval(fetchData, 2000);
-    });
-
+    // 캔버스 크기 조정
     function resizeCanvas() {
         const container = document.getElementById('canvas-container');
         const canvas = document.getElementById('wordcloud-canvas');
-        // 부모 컨테이너 크기에 맞춰 픽셀 완벽 일치
         canvas.width = container.clientWidth;
         canvas.height = container.clientHeight;
+        if(Object.keys(currentWords).length > 0) {
+            renderWordCloud(currentWords);
+        }
     }
+
+    window.addEventListener('resize', () => {
+        clearTimeout(window.resizeTimer);
+        window.resizeTimer = setTimeout(resizeCanvas, 200);
+    });
+
+    document.addEventListener("DOMContentLoaded", () => {
+        document.getElementById('theme-icon').className = 'ph-fill ph-moon text-yellow-400';
+        document.getElementById('theme-text').innerText = '다크모드';
+        
+        resizeCanvas();
+
+        // 에러 방지 안전장치: URL 입력 안 한 경우 작동 중지
+        if (GAS_URL === "YOUR_GOOGLE_APPS_SCRIPT_WEB_APP_URL_HERE" || !GAS_URL.startsWith("http")) {
+            Swal.fire({
+                icon: 'info',
+                title: '연결 대기 중',
+                text: 'HTML 코드 내의 GAS_URL 변수에 실제 구글 앱스 스크립트 웹 앱 URL을 입력하시면 실제 데이터와 연동됩니다.',
+                confirmButtonText: '확인'
+            });
+            document.getElementById('title-text').innerText = "URL을 설정해주세요";
+            document.getElementById('question-text').innerText = "코드 내의 GAS_URL을 변경해야 합니다.";
+            document.getElementById('target-badge').innerText = "대기중";
+            return; // Return early! Do NOT start the interval or fetch data.
+        }
+
+        fetchData();
+        // 빠른 반응을 위해 1초 간격으로 동기화
+        syncInterval = setInterval(fetchData, 1000); 
+    });
 
     async function fetchData() {
         try {
@@ -149,189 +198,227 @@
             document.getElementById('title-text').innerText = data.title;
             document.getElementById('target-badge').innerText = data.target;
             document.getElementById('question-text').innerText = data.question;
-            document.getElementById('admin-question').value = data.question; // 모달 내 질문도 동기화
-
-            // 단어 데이터 변환: 객체 -> 배열 [['단어', 빈도], ...]
-            const wordsArray = Object.keys(data.words).map(key => [key, data.words[key]]);
             
-            // 총 단어수 계산
-            const totalWords = wordsArray.reduce((acc, curr) => acc + curr[1], 0);
+            // 모달창이 닫혀있을 때만 폼 데이터 동기화 (입력 중 덮어쓰기 방지)
+            const adminModal = document.getElementById('admin-modal');
+            if (adminModal.classList.contains('hidden')) {
+                document.getElementById('admin-title').value = data.title;
+                document.getElementById('admin-target').value = data.target;
+                document.getElementById('admin-question').value = data.question;
+            }
+
+            // 단어 데이터 변환
+            const wordsArray = Object.keys(data.words).map(key => [key, data.words[key]]);
+            const totalWords = Object.values(data.words).reduce((sum, val) => sum + val, 0);
             document.getElementById('word-count').innerText = totalWords;
 
-            // 데이터 해시로 변경 여부 체크 (깜빡임 방지)
-            const currentHash = JSON.stringify(data.words);
-            if (currentHash !== lastDataHash && !isDrawing) {
-                lastDataHash = currentHash;
-                currentWordsArray = wordsArray;
-                if(wordsArray.length > 0) {
-                    renderCloud(wordsArray);
-                } else {
-                    // 데이터가 없을 때 캔버스 지우기
-                    const canvas = document.getElementById('wordcloud-canvas');
-                    const ctx = canvas.getContext('2d');
-                    ctx.clearRect(0, 0, canvas.width, canvas.height);
-                }
+            if (JSON.stringify(currentWords) !== JSON.stringify(data.words)) {
+                currentWords = data.words;
+                renderWordCloud(currentWords);
             }
         } catch (error) {
-            console.error("데이터 동기화 에러:", error);
+            console.error('동기화 에러:', error);
         }
     }
 
-    function renderCloud(list) {
-        if (list.length === 0) return;
-        isDrawing = true;
-
+    function renderWordCloud(wordsObj) {
+        if (isDrawing) return; 
+        
         const canvas = document.getElementById('wordcloud-canvas');
+        const wordsArray = Object.keys(wordsObj).map(key => [key, wordsObj[key]]);
         
-        // 빈도수 기반 크기 조정을 위한 최대 빈도수 탐색
-        const maxFreq = Math.max(...list.map(w => w[1]));
+        if(wordsArray.length === 0) {
+            const ctx = canvas.getContext('2d');
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            return;
+        }
+
+        isDrawing = true;
         
-        // 캔버스 크기에 비례하는 가중치 계산 함수
-        const baseSize = Math.min(canvas.width, canvas.height) / 10; 
-        const weightFactor = function (size) {
-            // 최대 빈도수와 현재 빈도수를 비교하여 적절한 크기 반환
-            // Math.pow를 사용하여 크기 차이를 극대화 (큰 단어는 더 크게)
-            let scale = Math.pow((size / maxFreq), 0.6) * baseSize;
-            return Math.max(scale, 16); // 최소 16px 보장
-        };
+        const maxFreq = Math.max(...wordsArray.map(w => w[1]));
+        const minFreq = Math.min(...wordsArray.map(w => w[1]));
+        
+        const baseSize = Math.min(canvas.width, canvas.height) / 18;
+
+        const normalizedWords = wordsArray.map(w => {
+            let weight = 1;
+            if (maxFreq > minFreq) {
+                weight = 1 + (w[1] - minFreq) / (maxFreq - minFreq) * 3; // 1~4 배율
+            }
+            return [w[0], baseSize * weight]; 
+        });
+
+        const isDark = document.documentElement.classList.contains('dark');
+        const bgClearColor = isDark ? '#111827' : '#f9fafb';
+
+        const ctx = canvas.getContext('2d');
+        ctx.fillStyle = bgClearColor;
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        const colors = [
+            '#F87171', '#FBBF24', '#34D399', '#60A5FA', '#A78BFA', '#F472B6', 
+            '#38BDF8', '#4ADE80', '#FB923C', '#E879F9', '#2DD4BF', '#FB7185'
+        ];
 
         WordCloud(canvas, {
-            list: list,
+            list: normalizedWords,
             fontFamily: 'Noto Sans KR, sans-serif',
             fontWeight: '900',
             color: function () {
-                // 팔레트에서 랜덤 색상 추출
-                return colorPalette[Math.floor(Math.random() * colorPalette.length)];
+                return colors[Math.floor(Math.random() * colors.length)];
             },
-            backgroundColor: 'transparent',
-            weightFactor: weightFactor,
+            backgroundColor: 'transparent', 
             gridSize: Math.round(16 * canvas.width / 1024),
-            rotateRatio: 0.3, // 30% 확률로 회전
+            rotateRatio: 0.3,
             rotationSteps: 2,
             shape: 'circle',
             drawOutOfBound: false,
-            shrinkToFit: true,
-            hover: function(item, dimension, event) {
-                const tooltip = document.getElementById('wc-tooltip');
-                if (item) {
-                    tooltip.innerHTML = `${item[0]} (${item[1]}회)`;
-                    tooltip.style.left = event.pageX + 10 + 'px';
-                    tooltip.style.top = event.pageY + 10 + 'px';
-                    tooltip.style.opacity = 1;
-                } else {
-                    tooltip.style.opacity = 0;
-                }
-            }
+            shrinkToFit: true
         });
 
-        // 렌더링 완료 이벤트 후 플래그 해제 (wordcloud2.js는 비동기 렌더링)
         canvas.addEventListener('wordcloudstop', function() {
             isDrawing = false;
         }, { once: true });
     }
 
-    function saveImage() {
-        const canvas = document.getElementById('wordcloud-canvas');
-        const link = document.createElement('a');
-        link.download = `워드클라우드_${new Date().getTime()}.png`;
-        link.href = canvas.toDataURL("image/png");
-        link.click();
+    async function saveImage() {
+        const isDark = document.documentElement.classList.contains('dark');
+        const bgColors = { background: isDark ? '#1F2937' : '#fff', color: isDark ? '#fff' : '#111827' };
         
         Swal.fire({
-            icon: 'success',
-            title: '저장 완료',
-            text: '워드클라우드 이미지가 다운로드 되었습니다.',
-            timer: 1500,
-            showConfirmButton: false,
-            background: '#1F2937',
-            color: '#fff'
+            title: '이미지 생성 중...',
+            text: '질문과 워드클라우드를 캡처하고 있습니다.',
+            allowOutsideClick: false,
+            didOpen: () => { Swal.showLoading(); },
+            ...bgColors
         });
+
+        try {
+            // main-workspace 전체를 캡처 영역으로 지정
+            const element = document.getElementById('main-workspace');
+            
+            // html2canvas 라이브러리로 화면 캡처
+            const canvas = await html2canvas(element, {
+                backgroundColor: isDark ? '#111827' : '#f9fafb', // 다크/라이트 모드 배경색 반영
+                scale: 2, // 고해상도 출력
+                logging: false
+            });
+
+            const link = document.createElement('a');
+            link.download = `워드클라우드_결과_${new Date().getTime()}.png`;
+            link.href = canvas.toDataURL("image/png");
+            link.click();
+            
+            Swal.fire({
+                icon: 'success',
+                title: '저장 완료',
+                text: '연수 제목과 질문이 포함된 워드클라우드가 저장되었습니다.',
+                timer: 2000,
+                showConfirmButton: false,
+                ...bgColors
+            });
+        } catch (error) {
+            console.error('이미지 저장 에러:', error);
+            Swal.fire({ icon: 'error', title: '저장 실패', text: '이미지 저장 중 문제가 발생했습니다.', ...bgColors });
+        }
     }
 
     function openAdminModal() {
-        const modal = document.getElementById('admin-modal');
-        const content = document.getElementById('admin-modal-content');
-        modal.classList.remove('hidden');
-        setTimeout(() => {
-            modal.classList.remove('opacity-0');
-            content.classList.remove('scale-95');
-        }, 10);
+        document.getElementById('admin-modal').classList.remove('hidden');
+        document.getElementById('admin-pw').value = '';
     }
 
     function closeAdminModal() {
-        const modal = document.getElementById('admin-modal');
-        const content = document.getElementById('admin-modal-content');
-        modal.classList.add('opacity-0');
-        content.classList.add('scale-95');
-        setTimeout(() => {
-            modal.classList.add('hidden');
-        }, 300);
-        document.getElementById('admin-password').value = '';
+        document.getElementById('admin-modal').classList.add('hidden');
     }
 
-    async function sendPostRequest(action, payload) {
-        payload.action = action;
-        const response = await fetch(GAS_URL, {
-            method: 'POST',
-            headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-            body: JSON.stringify(payload)
-        });
-        return await response.json();
-    }
-
-    async function updateQuestion() {
-        const pw = document.getElementById('admin-password').value;
+    async function saveSettings() {
+        const password = document.getElementById('admin-pw').value;
+        const target = document.getElementById('admin-target').value;
+        const title = document.getElementById('admin-title').value;
         const question = document.getElementById('admin-question').value;
-        
-        if(!pw) return Swal.fire({icon:'warning', title:'확인', text:'인증번호를 입력해주세요.', background: '#1F2937', color: '#fff'});
+
+        if(!password) {
+            Swal.fire('오류', '인증번호를 입력해주세요.', 'warning');
+            return;
+        }
+
+        const isDark = document.documentElement.classList.contains('dark');
+        const bgColors = { background: isDark ? '#1F2937' : '#fff', color: isDark ? '#fff' : '#111827' };
+
+        Swal.fire({
+            title: '저장 중...',
+            allowOutsideClick: false,
+            didOpen: () => { Swal.showLoading(); },
+            ...bgColors
+        });
 
         try {
-            const result = await sendPostRequest('updateQuestion', { password: pw, question: question });
-            if(result.success) {
-                Swal.fire({icon:'success', title:'적용 완료', text:'질문이 수정되었습니다.', timer: 1500, showConfirmButton: false, background: '#1F2937', color: '#fff'});
-                fetchData(); // 즉시 동기화
+            const response = await fetch(GAS_URL, {
+                method: 'POST',
+                headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+                body: JSON.stringify({ action: 'updateSettings', password, target, title, question })
+            });
+            const result = await response.json();
+            
+            if (result.success) {
+                Swal.fire({ icon: 'success', title: '설정 저장 완료', text: '시트에 반영되었습니다.', ...bgColors });
+                closeAdminModal();
+                fetchData(); 
             } else {
-                throw new Error(result.error);
+                Swal.fire({ icon: 'error', title: '실패', text: result.error, ...bgColors });
             }
-        } catch(e) {
-            Swal.fire({icon:'error', title:'오류', text: e.message, background: '#1F2937', color: '#fff'});
+        } catch (error) {
+            Swal.fire({ icon: 'error', title: '네트워크 오류', text: '요청에 실패했습니다.', ...bgColors });
         }
     }
 
     async function resetData() {
-        const pw = document.getElementById('admin-password').value;
-        if(!pw) return Swal.fire({icon:'warning', title:'확인', text:'인증번호를 입력해주세요.', background: '#1F2937', color: '#fff'});
+        const password = document.getElementById('admin-pw').value;
+        if(!password) {
+            Swal.fire('오류', '인증번호를 입력해주세요.', 'warning');
+            return;
+        }
 
-        const confirm = await Swal.fire({
-            title: '정말 초기화하시겠습니까?',
-            text: "시트에 기록된 단어 데이터가 모두 삭제됩니다.",
+        const isDark = document.documentElement.classList.contains('dark');
+        const bgColors = { background: isDark ? '#1F2937' : '#fff', color: isDark ? '#fff' : '#111827' };
+
+        Swal.fire({
+            title: '데이터 초기화',
+            text: "정말 모든 단어 데이터를 삭제하시겠습니까?",
             icon: 'warning',
             showCancelButton: true,
             confirmButtonColor: '#d33',
-            cancelButtonColor: '#4B5563',
-            confirmButtonText: '삭제',
+            cancelButtonColor: '#3085d6',
+            confirmButtonText: '네, 삭제합니다',
             cancelButtonText: '취소',
-            background: '#1F2937', color: '#fff'
-        });
-
-        if(confirm.isConfirmed) {
-            try {
-                const result = await sendPostRequest('resetData', { password: pw });
-                if(result.success) {
-                    Swal.fire({icon:'success', title:'초기화 완료', text:'데이터가 모두 삭제되었습니다.', timer: 1500, showConfirmButton: false, background: '#1F2937', color: '#fff'});
-                    lastDataHash = "";
-                    currentWordsArray = [];
-                    const canvas = document.getElementById('wordcloud-canvas');
-                    canvas.getContext('2d').clearRect(0, 0, canvas.width, canvas.height);
-                    fetchData();
-                    closeAdminModal();
-                } else {
-                    throw new Error(result.error);
+            ...bgColors
+        }).then(async (result) => {
+            if (result.isConfirmed) {
+                Swal.fire({ title: '삭제 중...', allowOutsideClick: false, didOpen: () => { Swal.showLoading(); }, ...bgColors });
+                
+                try {
+                    const response = await fetch(GAS_URL, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+                        body: JSON.stringify({ action: 'resetData', password: password })
+                    });
+                    const resData = await response.json();
+                    
+                    if (resData.success) {
+                        currentWords = {};
+                        renderWordCloud({});
+                        Swal.fire({ icon: 'success', title: '초기화 완료', text: '모든 데이터가 삭제되었습니다.', ...bgColors });
+                        closeAdminModal();
+                        fetchData();
+                    } else {
+                        Swal.fire({ icon: 'error', title: '초기화 실패', text: resData.error, ...bgColors });
+                    }
+                } catch (error) {
+                    Swal.fire({ icon: 'error', title: '네트워크 오류', text: '요청에 실패했습니다.', ...bgColors });
                 }
-            } catch(e) {
-                Swal.fire({icon:'error', title:'오류', text: e.message, background: '#1F2937', color: '#fff'});
             }
-        }
+        });
     }
 </script>
 </body>
