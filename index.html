@@ -40,6 +40,9 @@
         <p class="text-sm font-semibold tracking-wide">개발자 : 가치있는 미래교육 연구소 대표 김병찬</p>
     </div>
     <div class="flex gap-2">
+        <button id="sync-toggle-btn" onclick="toggleSync()" class="bg-green-600 hover:bg-green-700 text-white px-3 py-1.5 rounded-lg text-sm font-semibold flex items-center gap-1 shadow-sm transition">
+            <i class="ph-fill ph-pause text-lg"></i> <span class="hidden sm:inline">화면 갱신 멈춤</span>
+        </button>
         <button onclick="toggleTheme()" class="bg-gray-100 hover:bg-gray-200 dark:bg-gray-800 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-200 px-3 py-1.5 rounded-lg text-sm font-semibold flex items-center gap-1 transition">
             <i id="theme-icon" class="ph-fill ph-moon"></i> <span class="hidden sm:inline" id="theme-text">테마</span>
         </button>
@@ -61,7 +64,10 @@
         </div>
         <h1 id="title-text" class="text-xl md:text-2xl font-extrabold mb-3 drop-shadow-sm text-gray-800 dark:text-gray-100">연수 제목 불러오는 중...</h1>
         <p id="question-text" class="text-lg md:text-xl font-bold text-gray-700 dark:text-gray-300 px-4 py-1">질문 불러오는 중...</p>
-        <p class="text-xs text-gray-500 dark:text-gray-400 mt-2 font-medium">총 참여 단어 수: <span id="word-count" class="font-bold text-blue-600 dark:text-blue-400">0</span>개</p>
+        <div class="flex items-center justify-center gap-2 mt-2">
+            <p class="text-xs text-gray-500 dark:text-gray-400 font-medium">총 참여 단어 수: <span id="word-count" class="font-bold text-blue-600 dark:text-blue-400">0</span>개</p>
+            <span id="sync-status-badge" class="hidden bg-red-100 text-red-700 border border-red-200 dark:bg-red-900/50 dark:text-red-300 dark:border-red-800 px-2 py-0.5 rounded-md text-[10px] font-bold shadow-sm">화면 고정됨 (수집중)</span>
+        </div>
     </div>
 
     <!-- WordCloud Canvas Container -->
@@ -128,6 +134,26 @@
     let currentWords = {};
     let isDrawing = false;
     let syncInterval;
+    let isSyncPaused = false; // 화면 갱신 정지 상태 변수
+
+    // 화면 갱신 정지 토글 함수
+    function toggleSync() {
+        isSyncPaused = !isSyncPaused;
+        const btn = document.getElementById('sync-toggle-btn');
+        const badge = document.getElementById('sync-status-badge');
+        
+        if(isSyncPaused) {
+            btn.innerHTML = '<i class="ph-fill ph-play text-lg"></i> <span class="hidden sm:inline">화면 갱신 켜기</span>';
+            btn.className = 'bg-red-500 hover:bg-red-600 text-white px-3 py-1.5 rounded-lg text-sm font-semibold flex items-center gap-1 shadow-sm transition';
+            badge.classList.remove('hidden');
+        } else {
+            btn.innerHTML = '<i class="ph-fill ph-pause text-lg"></i> <span class="hidden sm:inline">화면 갱신 멈춤</span>';
+            btn.className = 'bg-green-600 hover:bg-green-700 text-white px-3 py-1.5 rounded-lg text-sm font-semibold flex items-center gap-1 shadow-sm transition';
+            badge.classList.add('hidden');
+            // 정지 해제 시 화면 즉시 새로고침
+            if(Object.keys(currentWords).length > 0) renderWordCloud(currentWords);
+        }
+    }
 
     // 테마 토글
     function toggleTheme() {
@@ -213,7 +239,9 @@
 
             if (JSON.stringify(currentWords) !== JSON.stringify(data.words)) {
                 currentWords = data.words;
-                renderWordCloud(currentWords);
+                if (!isSyncPaused) { // 정지 상태가 아닐 때만 워드클라우드 렌더링
+                    renderWordCloud(currentWords);
+                }
             }
         } catch (error) {
             console.error('동기화 에러:', error);
